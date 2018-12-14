@@ -1,9 +1,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TypeFamilies           #-}
 module Chat.Capabilities
   ( Hub
-  , Connection
   , connectionCount
   , isConnected
   , connect
@@ -13,11 +11,9 @@ module Chat.Capabilities
 
 import Chat.Data (ClientId)
 
-class Monad m => Hub m where
-  type Connection m :: *
-
+class Monad m => Hub m c | m -> c where
   connectionCount :: m Int
   isConnected :: ClientId -> m Bool
-  connect :: ClientId -> Connection m -> m ()
+  connect :: ClientId -> c -> m ()
   disconnect :: ClientId -> m ()
   broadcast :: ClientId -> Text -> m ()

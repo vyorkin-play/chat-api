@@ -26,38 +26,38 @@ import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import qualified Data.Map.Strict as Map
 import qualified Network.WebSockets as WS
 
-newtype App a = App
-  { runApp :: ReaderT (Env App) IO a
+newtype App c a = App
+  { runApp :: ReaderT (Env (App c) c) IO a
   } deriving newtype
     ( Functor
     , Applicative
     , Monad
     , MonadIO
     , MonadUnliftIO
-    , MonadReader (Env App)
+    , MonadReader (Env (App c) c)
     )
 
-runChat :: Env App -> App a -> IO a
+runChat :: Env (App c) c -> App c a -> IO a
 runChat env = usingReaderT env . runApp
 
 -- Synonym for constraints commonly
 -- satisfied by monads used in stack.
-type Chat m =
-  ( WithLog (Env App) Message m
+type Chat m c =
+  ( WithLog (Env (App c) c) Message m
   , MonadIO m
   , MonadUnliftIO m
-  , Hub m
+  , Hub m c
   )
 
 -- | Run chat server.
-chat :: Chat m => m ()
+chat :: Chat m WS.Connection => m ()
 chat = do
   portNum <- asks port
   log I $ "listening on port " <> show portNum <> "..."
   withRunInIO $ \io -> liftIO $
     WS.runServer "127.0.0.1" portNum (io . loop)
 
-loop :: Chat m => WS.PendingConnection -> m ()
+loop :: Chat m WS.Connection => WS.PendingConnection-> m ()
 loop pending = do
   conn <- liftIO $ WS.acceptRequest pending
   liftIO $ WS.forkPingThread conn 30
@@ -66,7 +66,7 @@ loop pending = do
     Right cid -> accept conn cid
     Left err  -> reject conn err
 
-accept :: Chat m => WS.Connection -> ClientId -> m ()
+accept :: Chat m WS.Connection => WS.Connection -> ClientId -> m ()
 accept conn cid = do
   connected <- isConnected cid
   if connected
@@ -81,13 +81,13 @@ reject conn err =
   let reason = Announcement.errorText err
   in liftIO $ WS.sendTextData conn reason
 
-startTalking :: Chat m => WS.Connection -> ClientId -> m ()
+startTalking :: Chat m WS.Connection => WS.Connection -> ClientId -> m ()
 startTalking conn cid =
   withRunInIO $ \io -> liftIO $ finally
     (io $ joinChat conn cid)
     (io $ leaveChat cid)
 
-joinChat :: Chat m => WS.Connection -> ClientId -> m ()
+joinChat :: Chat m WS.Connection => WS.Connection -> ClientId -> m ()
 joinChat conn cid = do
   connect cid conn
   broadcast cid $ "-> " <> name <> " joined"
@@ -97,14 +97,12 @@ joinChat conn cid = do
   where
     name = clientName cid
 
-leaveChat :: Chat m => ClientId -> m ()
+leaveChat :: Chat m WS.Connection => ClientId -> m ()
 leaveChat cid = do
   broadcast cid $ "<- " <> clientName cid <> " left"
   disconnect cid
 
-instance Hub App where
-  type Connection App = WS.Connection
-
+instance Hub (App WS.Connection) WS.Connection where
   connectionCount = Map.size <$> readClients
   isConnected cid = Map.member cid <$> readClients
   connect cid = withClients . Map.insert cid
@@ -114,10 +112,10 @@ instance Hub App where
     let others = Map.withoutKeys clients' (one cid)
     liftIO $ forM_ (Map.elems others) (`WS.sendTextData` msg)
 
-readClients :: App Clients
+readClients :: App WS.Connection (Clients WS.Connection)
 readClients = asks clients >>= readMVar
 
-withClients :: (Clients -> Clients) -> App ()
+withClients :: (Clients WS.Connection -> Clients WS.Connection) -> App WS.Connection ()
 withClients f = do
   ref <- asks clients
   liftIO $ modifyMVar_ ref (return . f)

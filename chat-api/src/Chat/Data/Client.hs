@@ -7,7 +7,6 @@ module Chat.Data.Client
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import qualified Network.WebSockets as WS
 
 newtype ClientId = ClientId Text
   deriving (Show, Eq, Ord)
@@ -15,7 +14,7 @@ newtype ClientId = ClientId Text
 clientName :: ClientId -> Text
 clientName (ClientId name) = name
 
-type Clients = Map ClientId WS.Connection
+type Clients c = Map ClientId c
 
-emptyClients :: Clients
+emptyClients :: Clients c
 emptyClients = Map.empty
