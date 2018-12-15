@@ -18,7 +18,7 @@ import Chat.Capabilities
 import Chat.Data (Clients, clientName)
 import Chat.Data.Announcement as Announcement
 import Chat.Env (Env (..))
-import Colog (pattern I, Message, WithLog, log)
+import Colog (pattern D, pattern I, Message, WithLog, log)
 import Control.Concurrent (modifyMVar_)
 import Control.Exception (finally)
 import Control.Monad.IO.Class (MonadIO)
@@ -75,11 +75,13 @@ instance Hub (App WS.Connection) WS.Connection where
   disconnect  = withClients . Map.delete
 
   broadcast cid msg = do
+    log D msg
     clients' <- readClients
     let others = Map.withoutKeys clients' (one cid)
     liftIO $ forM_ (Map.elems others) (`WS.sendTextData` msg)
 
-  start conn cid =
+  start conn cid = do
+    log D $ "Starting a new chat session for CID: " <> show cid
     withRunInIO $ \io -> liftIO $ finally
       (io $ join conn cid)
       (io $ leave cid)
@@ -87,19 +89,25 @@ instance Hub (App WS.Connection) WS.Connection where
   accept conn cid = do
     connected <- isConnected cid
     if connected
-      then liftIO sendAlreadyConnected
+      then sendAlreadyConnected
       else start conn cid
     where
-      sendAlreadyConnected = WS.sendTextData conn
-        ("client " <> show cid <> " is already connected" :: Text)
+      sendAlreadyConnected = do
+        log D $ "Rejecting connection from CID " <> show cid <> " because: " <> rejectReason
+        liftIO $ WS.sendTextData conn rejectReason
+      rejectReason :: Text
+      rejectReason = "client " <> show cid <> " is already connected"
 
-  reject conn err =
-    let reason = Announcement.errorText err
-    in liftIO $ WS.sendTextData conn reason
+  reject conn err = do
+    log D $ "Rejecting connection because: " <> reason
+    liftIO $ WS.sendTextData conn reason
+    where
+      reason = Announcement.errorText err
 
   join conn cid = do
     connect cid conn
     broadcast cid $ "-> " <> name <> " joined"
+    log D $ show cid <> " joined"
     forever $ do
       msg <- liftIO $ WS.receiveData conn
       broadcast cid $ name <> ": " <> msg
@@ -108,6 +116,7 @@ instance Hub (App WS.Connection) WS.Connection where
   leave cid = do
     broadcast cid $ "<- " <> clientName cid <> " left"
     disconnect cid
+    log D $ show cid <> " left"
 
 readClients :: App c (Clients c)
 readClients = asks clients >>= readMVar
