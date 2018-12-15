@@ -6,16 +6,18 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE PatternSynonyms            #-}
-{-# LANGUAGE TypeFamilies               #-}
 module Chat
   ( Env(..)
   , App(..)
   , runChat
   , chat
+  , module Chat.Capabilities
+  , module Chat.Data
+  , module Chat.Env
   ) where
 
 import Chat.Capabilities
-import Chat.Data (Clients, clientName)
+import Chat.Data (ClientId, Clients, clientName)
 import Chat.Data.Announcement as Announcement
 import Chat.Env (Env (..))
 import Colog (pattern D, pattern I, Message, WithLog, log)
@@ -41,6 +43,14 @@ newtype App c a = App
 runChat :: Env (App c) c -> App c a -> IO a
 runChat env = usingReaderT env . runApp
 
+readClients :: App c (Clients c)
+readClients = asks clients >>= readMVar
+
+withClients :: (Clients c -> Clients c) -> App c ()
+withClients f = do
+  ref <- asks clients
+  liftIO $ modifyMVar_ ref (return . f)
+
 -- Synonym for constraints commonly
 -- satisfied by monads used in stack.
 type Chat m c =
@@ -62,8 +72,8 @@ loop :: Chat m WS.Connection => WS.PendingConnection-> m ()
 loop pending = do
   conn <- liftIO $ WS.acceptRequest pending
   liftIO $ WS.forkPingThread conn 30
-  raw <- liftIO $ WS.receiveData conn
-  case Announcement.parse raw of
+  msg <- receive conn
+  case Announcement.parse msg of
     Right cid -> accept conn cid
     Left err  -> reject conn err
 
@@ -78,50 +88,50 @@ instance Hub (App WS.Connection) WS.Connection where
     log D msg
     clients' <- readClients
     let others = Map.withoutKeys clients' (one cid)
-    liftIO $ forM_ (Map.elems others) (`WS.sendTextData` msg)
+    forM_ (Map.elems others) (`send` msg)
 
-  start conn cid = do
-    log D $ "Starting a new chat session for CID: " <> show cid
-    withRunInIO $ \io -> liftIO $ finally
-      (io $ join conn cid)
-      (io $ leave cid)
+  send c  = liftIO . WS.sendTextData c
+  receive = liftIO . WS.receiveData
 
-  accept conn cid = do
-    connected <- isConnected cid
-    if connected
-      then sendAlreadyConnected
-      else start conn cid
-    where
-      sendAlreadyConnected = do
-        log D $ "Rejecting connection from CID " <> show cid <> " because: " <> rejectReason
-        liftIO $ WS.sendTextData conn rejectReason
-      rejectReason :: Text
-      rejectReason = "client " <> show cid <> " is already connected"
+start :: Chat m c => c -> ClientId -> m ()
+start conn cid = do
+  log D $ "Starting a new chat session for " <> show cid
+  withRunInIO $ \io -> liftIO $ finally
+    (io $ join conn cid)
+    (io $ leave cid)
 
-  reject conn err = do
-    log D $ "Rejecting connection because: " <> reason
-    liftIO $ WS.sendTextData conn reason
-    where
-      reason = Announcement.errorText err
+accept :: Chat m c => c -> ClientId -> m ()
+accept conn cid = do
+  connected <- isConnected cid
+  if connected
+    then sendAlreadyConnected
+    else start conn cid
+  where
+    sendAlreadyConnected = do
+      log D $ "Rejecting connection from " <> show cid <> " because: " <> rejectReason
+      send conn rejectReason
+    rejectReason :: HubMsg
+    rejectReason = "client " <> show cid <> " is already connected"
 
-  join conn cid = do
-    connect cid conn
-    broadcast cid $ "-> " <> name <> " joined"
-    log D $ show cid <> " joined"
-    forever $ do
-      msg <- liftIO $ WS.receiveData conn
-      broadcast cid $ name <> ": " <> msg
-    where name = clientName cid
+reject :: Chat m c => c -> AnnouncementError -> m ()
+reject conn err = do
+  log D $ "Rejecting connection because: " <> reason
+  send conn reason
+  where
+    reason = Announcement.errorText err
 
-  leave cid = do
-    broadcast cid $ "<- " <> clientName cid <> " left"
-    disconnect cid
-    log D $ show cid <> " left"
+join :: Chat m c => c -> ClientId -> m ()
+join conn cid = do
+  connect cid conn
+  broadcast cid $ "-> " <> name <> " joined"
+  log D $ show cid <> " joined"
+  forever $ do
+    msg <- receive conn
+    broadcast cid $ name <> ": " <> msg
+  where name = clientName cid
 
-readClients :: App c (Clients c)
-readClients = asks clients >>= readMVar
-
-withClients :: (Clients c -> Clients c) -> App c ()
-withClients f = do
-  ref <- asks clients
-  liftIO $ modifyMVar_ ref (return . f)
+leave :: Chat m c => ClientId -> m ()
+leave cid = do
+  broadcast cid $ "<- " <> clientName cid <> " left"
+  disconnect cid
+  log D $ show cid <> " left"

@@ -91,6 +91,8 @@ test-suite chat-test
                        -Wmissing-export-lists
                        -Wpartial-fields
   type:                exitcode-stdio-1.0
+  mixins:              base hiding (Prelude)
+                     , relude (Relude as Prelude)
   build-depends:       chat
                      , hspec
                      , tasty
