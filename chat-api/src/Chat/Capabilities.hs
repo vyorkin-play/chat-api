@@ -7,7 +7,6 @@ module Chat.Capabilities
   , isConnected
   , connect
   , disconnect
-  , broadcast
   , send
   , receive
   ) where
@@ -21,6 +20,5 @@ class Monad m => Hub m c | m -> c where
   isConnected :: ClientId -> m Bool
   connect :: ClientId -> c -> m ()
   disconnect :: ClientId -> m ()
-  broadcast :: ClientId -> HubMsg -> m ()
   send :: c -> HubMsg -> m ()
   receive :: c -> m HubMsg

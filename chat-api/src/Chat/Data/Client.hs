@@ -1,6 +1,6 @@
 module Chat.Data.Client
   ( ClientId(..)
-  , Clients
+  , ClientMap
   , clientName
   , emptyClients
   ) where
@@ -14,7 +14,7 @@ newtype ClientId = ClientId Text
 clientName :: ClientId -> Text
 clientName (ClientId name) = name
 
-type Clients c = Map ClientId c
+type ClientMap c = Map ClientId c
 
-emptyClients :: Clients c
+emptyClients :: ClientMap c
 emptyClients = Map.empty

@@ -13,14 +13,14 @@ module Chat.Env
   , newEnv
   ) where
 
-import Chat.Data (Clients, emptyClients)
+import Chat.Data (ClientMap, emptyClients)
 import Colog (HasLog, LogAction, Message, getLogAction, setLogAction)
 import Control.Concurrent (MVar)
 
 data Env m c = Env
   { port    :: Int
   , logger  :: LogAction m Message
-  , clients :: !(MVar (Clients c))
+  , clients :: !(MVar (ClientMap c))
   }
 
 instance HasLog (Env m c) Message m where

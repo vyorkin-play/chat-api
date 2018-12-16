@@ -17,7 +17,7 @@ module Chat
   ) where
 
 import Chat.Capabilities
-import Chat.Data (ClientId, Clients, clientName)
+import Chat.Data (ClientId, ClientMap, clientName)
 import Chat.Data.Announcement as Announcement
 import Chat.Env (Env (..))
 import Colog (pattern D, pattern I, Message, WithLog, log)
@@ -43,10 +43,10 @@ newtype App c a = App
 runChat :: Env (App c) c -> App c a -> IO a
 runChat env = usingReaderT env . runApp
 
-readClients :: App c (Clients c)
+readClients :: (MonadReader (Env (App c) c) m, MonadIO m) => m (ClientMap c)
 readClients = asks clients >>= readMVar
 
-withClients :: (Clients c -> Clients c) -> App c ()
+withClients :: (ClientMap c -> ClientMap c) -> App c ()
 withClients f = do
   ref <- asks clients
   liftIO $ modifyMVar_ ref (return . f)
@@ -84,14 +84,15 @@ instance Hub (App WS.Connection) WS.Connection where
   connect cid = withClients . Map.insert cid
   disconnect  = withClients . Map.delete
 
-  broadcast cid msg = do
-    log D msg
-    clients' <- readClients
-    let others = Map.withoutKeys clients' (one cid)
-    forM_ (Map.elems others) (`send` msg)
-
   send c  = liftIO . WS.sendTextData c
   receive = liftIO . WS.receiveData
+
+broadcast :: Chat m c => ClientId -> HubMsg -> m ()
+broadcast cid msg = do
+  log D msg
+  clients' <- readClients
+  let others = Map.withoutKeys clients' (one cid)
+  forM_ (Map.elems others) (`send` msg)
 
 start :: Chat m c => c -> ClientId -> m ()
 start conn cid = do
