@@ -2,13 +2,11 @@
 /node_modules/
 /.pulp-cache/
 /output/
-/build
-/dist
+/dist/
 /generated-docs/
 /.psc-package/
 /.psc*
 /.purs*
 /.psa*
+/.spago
 /.cache
-/css
-generate-css.js
