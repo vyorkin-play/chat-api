@@ -20,7 +20,7 @@ spec = describe "Chat.Data.Message" do
 
   it "parses announcements" do
     Message.parse joined1 `shouldEqual` (Right $ Joined (User "foo"))
-    pure unit
+    Message.parse joined2 `shouldEqual` (Right $ Joined (User "bar"))
 
   it "parses messages" do
     pure unit
