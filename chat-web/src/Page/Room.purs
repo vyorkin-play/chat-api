@@ -1,4 +1,4 @@
-module Chat.Component.Room
+module Chat.Page.Room
   ( Query(..)
   , Input
   , Slot(..)

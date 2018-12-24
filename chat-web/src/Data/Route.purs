@@ -1,19 +1,23 @@
 module Chat.Data.Route
   ( Route(..)
   , codec
+  , parse
+  , print
   ) where
 
 import Prelude hiding ((/))
 
-import Chat.Data.Username (Username)
-import Chat.Data.Username as Username
-import Data.Either (note)
+import Chat.Data.User (User)
+import Chat.Data.User as User
+import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Prelude.Unicode ((∘))
 import Routing.Duplex (RouteDuplex', as, root, segment)
+import Routing.Duplex (parse, print) as Route
 import Routing.Duplex.Generic (noArgs, sum)
 import Routing.Duplex.Generic.Syntax ((/))
+import Routing.Duplex.Parser (RouteError)
 
 -- We'll represent routes in our application with a simple sum type. As the
 -- application grows, you might want to swap this out with an extensible sum
@@ -24,7 +28,7 @@ import Routing.Duplex.Generic.Syntax ((/))
 data Route
   = Welcome
   | Room
-  | Contact Username
+  | Contact User
 
 derive instance genericRoute ∷ Generic Route _
 
@@ -49,5 +53,11 @@ codec = root $ sum
   , "Contact": "contact" / username segment
   }
 
-username ∷ RouteDuplex' String → RouteDuplex' Username
-username = as Username.toString (note "Bad username" ∘ Username.parse)
+parse ∷ String → Either RouteError Route
+parse = Route.parse codec
+
+print ∷ Route → String
+print = Route.print codec
+
+username ∷ RouteDuplex' String → RouteDuplex' User
+username = as User.toString (note "Bad username" ∘ User.parse)

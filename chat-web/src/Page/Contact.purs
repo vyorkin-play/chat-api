@@ -1,4 +1,4 @@
-module Chat.Component.Contact
+module Chat.Page.Contact
   ( Query(..)
   , Input
   , Slot(..)

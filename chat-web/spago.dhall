@@ -15,6 +15,7 @@ You can edit this file as you like.
   , "generics-rep-optics"
   , "halogen"
   , "halogen-css"
+  , "svg-parser-halogen"
   , "css"
   , "affjax"
   , "parallel"

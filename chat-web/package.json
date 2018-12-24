@@ -1,7 +1,9 @@
 {
   "scripts": {
     "postinstall": "spago install",
-    "clean": "rm -rf dist/* output/*",
+    "clean": "run-p clean:output clean:dist",
+    "clean:dist": "rm -rf dist/*",
+    "clean:output": "rm -rf output/*",
     "reset:all": "run-p reset reset:spago",
     "reset": "run-p clean reset:psc-package reset:cache reset:psci",
     "reset:psc-package": "spago psc-package-clean",
@@ -15,13 +17,14 @@
     "parcel:build": "parcel build app.html",
     "parcel:serve": "parcel app.html -p 3100 --no-autoinstall --no-cache",
     "start": "run-s compile parcel:serve",
-    "build": "run-s clean compile parcel:build"
+    "build": "run-s clean:dist compile parcel:build"
   },
   "dependencies": {
     "normalize.css": "^8.0.1"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
-    "parcel-bundler": "^1.10.3"
+    "parcel-bundler": "^1.10.3",
+    "parcel-plugin-inlinesvg": "^0.1.0"
   }
 }

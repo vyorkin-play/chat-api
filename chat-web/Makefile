@@ -14,9 +14,11 @@ reset-all:
 	npm run reset:all
 test:
 	npm test
+compile:
+	npm run compile
 build:
 	npm run build
 deps:
 	npm install
 
-.PHONY: run css replb repln clean reset reset-all test build deps
+.PHONY: run css replb repln clean reset reset-all test compile build deps
