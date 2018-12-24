@@ -64,12 +64,19 @@ button {
   cursor: pointer;
 }
 
-.logo {
-  width: 2.8rem;
-  height: 2.8rem;
+.header {
+  border-bottom: 1px solid #eee;
+  padding: 0.5rem;
+  box-shadow: 0 0px 2px rgba(0,0,0,0.1);
+  display: flex;
 }
 
-.header {
+.logo {
+}
+
+.logo-icon {
+  width: 2.8rem;
+  height: 2.8rem;
 }
 
 .nav {

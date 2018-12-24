@@ -1,5 +1,6 @@
 module Chat.Component.HTML.Utils
   ( css
+  , className
   , safeHref
   , whenElem
   , maybeElem
@@ -12,7 +13,7 @@ import Chat.Data.Route (Route)
 import Chat.Data.Route (print) as Route
 import Chat.Utils.Conditional ((?))
 import Data.Maybe (Maybe(..))
-import Halogen.HTML (ClassName(..), IProp)
+import Halogen.HTML (AttrName(..), ClassName(..), IProp, attr)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties (classes)
 import Halogen.HTML.Properties as HP
@@ -22,6 +23,9 @@ type WithClass r i = IProp ("class" ∷ String | r) i
 
 css ∷ ∀ r i. Array String → WithClass r i
 css = classes ∘ map ClassName
+
+className ∷ ∀ p i. String → IProp p i
+className = attr $ AttrName "class"
 
 -- We can ensure that we only create safe hashes by relying on our `Route` data type
 safeHref ∷ ∀ r i. Route → IProp (href ∷ String | r) i

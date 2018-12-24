@@ -54,5 +54,4 @@ component = H.lifecycleParentComponent
 
     render ∷ State → HTML m
     render state =
-      HH.div_
-      [ raw [ css ["logo"] ] Assets.svg.logo ]
+      HH.div_ []
