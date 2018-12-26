@@ -60,6 +60,11 @@ a:hover {
   color: #4282fe;
 }
 
+fieldset {
+  border: none;
+  margin: 0;
+}
+
 button {
   cursor: pointer;
 }
@@ -83,4 +88,29 @@ button {
 }
 
 .footer {
+}
+
+.input {
+  padding: 0.2rem 0.4rem;
+  font-size: 1.4rem;
+  border: 1px solid #eee;
+}
+.input:hover, input:focus {
+  border: 1px solid #4282fe;
+}
+
+.button {
+  padding: 0.4rem 0.8rem;
+}
+
+.button-join {
+  font-size: 1.4rem;
+  background-color: #198844;
+  color: #fff;
+}
+
+.button-send {
+  font-size: 1.2rem;
+  background-color: #3971ed;
+  color: #fff;
 }

@@ -1,5 +1,7 @@
 module Chat.Data.Announcement
-  ( AnnouncementError
+  ( Response(..)
+  , responseText
+  , Error(..)
   , parse
   , errorText
   ) where
@@ -8,15 +10,25 @@ import Chat.Data.Client (ClientId (..))
 import qualified Data.Char as Char
 import qualified Data.Text as Text
 
-data AnnouncementError
+data Response
+  = Accept
+  | Reject Error
+
+responseText :: Response -> Text
+responseText Accept     = "!accept!"
+responseText (Reject e) = "!reject!" <> errorText e
+
+data Error
   = WrongAnnouncement
   | InvalidUserName
+  | AlreadyConnected ClientId
 
-errorText :: AnnouncementError -> Text
-errorText WrongAnnouncement = "Wrong announcement"
-errorText InvalidUserName   = "Invalid user name"
+errorText :: Error -> Text
+errorText WrongAnnouncement      = "Wrong announcement"
+errorText InvalidUserName        = "Invalid user name"
+errorText (AlreadyConnected cid) = "Client " <> show cid <> " is already connected"
 
-parse :: Text -> Either AnnouncementError ClientId
+parse :: Text -> Either Error ClientId
 parse s | isWrongAnnouncement s = Left WrongAnnouncement
 parse s | isInvalidUserName s   = Left InvalidUserName
 parse s = Right $ mkClientId s

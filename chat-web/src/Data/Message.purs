@@ -14,13 +14,14 @@ import Data.Foldable (foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.String.CodeUnits (singleton)
-import Prelude.Unicode ((⊙))
 import Text.Parsing.StringParser (ParseError, Parser, runParser)
-import Text.Parsing.StringParser.CodeUnits (alphaNum, string)
-import Text.Parsing.StringParser.Combinators (many, (<?>))
+import Text.Parsing.StringParser.CodePoints (alphaNum, anyChar, string, whiteSpace)
+import Text.Parsing.StringParser.Combinators (many, optional, (<?>))
 
 data Message
-  = Said User String
+  = Accepted
+  | Rejected String
+  | Said User String
   | Joined User
   | Left User
 
@@ -33,6 +34,8 @@ instance showMessage ∷ Show Message where
 
 print ∷ Message → String
 print = case _ of
+  Accepted       → "!accepted!"
+  Rejected error → "!rejected!" <> error
   Said user text → User.toString user <> ": " <> text
   Joined user    → "-> " <> User.toString user <> " joined"
   Left user      → "<- " <> User.toString user <> " left"
@@ -41,21 +44,46 @@ parse ∷ String → Either ParseError Message
 parse = runParser parser
 
 parser ∷ Parser Message
-parser = announcement "-> " Joined "joined"
+parser = accepted
+     <|> rejected
+     <|> announcement "-> " Joined "joined"
      <|> announcement "<- " Left "left"
      <|> message
      <?> "Error parsing message"
 
+accepted ∷ Parser Message
+accepted = do
+  void $ string "!accepted!"
+  pure Accepted
+
+rejected ∷ Parser Message
+rejected = do
+  error ← string "!rejected!" *> anyString
+  pure $ Rejected error
+
 announcement ∷ String → (User → Message) → String → Parser Message
 announcement prefix ctor action = do
-  name ← string prefix *> token *> string action
+  void $ string prefix
+  optional whiteSpace
+  name ← token
+  optional whiteSpace
+  void $ string action
   pure $ ctor (User name)
 
 message ∷ Parser Message
 message = do
-  name ← token *> string ":"
-  text ← token
+  name ← token
+  optional whiteSpace
+  void $ string ":"
+  optional whiteSpace
+  text ← anyString
   pure $ Said (User name) text
 
 token ∷ Parser String
-token = foldMap singleton ⊙ many alphaNum
+token = many' alphaNum
+
+anyString ∷ Parser String
+anyString = many' anyChar
+
+many' ∷ Parser Char → Parser String
+many' p = foldMap singleton <$> many p

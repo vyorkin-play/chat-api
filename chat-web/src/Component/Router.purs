@@ -12,6 +12,8 @@ module Chat.Component.Router
 import Prelude
 
 import Chat.Capability.Now (class Now)
+import Chat.Capabiltiy.Hub (class Hub)
+import Chat.Capabiltiy.Navigation (class Navigation)
 import Chat.Component.HTML.Header (header)
 import Chat.Component.HTML.Utils (css)
 import Chat.Data.Route (Route(..))
@@ -40,13 +42,6 @@ data Query a
 type Input  = Unit
 type Output = Void
 
--- A sort of continuation-passing style at the type level
-type WithCaps c m
-  = MonadAff m
-  ⇒ MonadAsk Env m
-  ⇒ Now m
-  ⇒ c m
-
 -- | Query algebra for direct children of the router component,
 -- | represented as a `Coproduct`.
 type ChildQuery
@@ -62,8 +57,17 @@ type ChildSlot
   \/ Contact.Slot
   \/ Void
 
+-- A sort of continuation-passing style at the type level
+type WithCaps c m
+  = MonadAff m
+  ⇒ MonadAsk Env m
+  ⇒ Now m
+  ⇒ Navigation m
+  ⇒ Hub m
+  ⇒ c m
+
 type Component' m = H.Component HH.HTML Query Input Output m
-type Component m  = WithCaps Component' m
+type Component  m = WithCaps Component' m
 
 type DSL m  = H.ParentDSL State Query ChildQuery ChildSlot Output m
 type HTML m = H.ParentHTML Query ChildQuery ChildSlot m

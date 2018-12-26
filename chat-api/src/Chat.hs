@@ -26,6 +26,7 @@ import Control.Exception (finally)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as Text
 import qualified Network.WebSockets as WS
 import Prelude hiding (join)
 
@@ -74,8 +75,13 @@ loop pending = do
   liftIO $ WS.forkPingThread conn 30
   msg <- receive conn
   case Announcement.parse msg of
-    Right cid -> accept conn cid
-    Left err  -> reject conn err
+    Right cid -> do
+      connected <- isConnected cid
+      if connected
+        then reject conn (Announcement.AlreadyConnected cid)
+        else accept conn cid
+    Left err ->
+      reject conn err
 
 instance Hub (App WS.Connection) WS.Connection where
   connectionCount = Map.size <$> readClients
@@ -103,23 +109,13 @@ start conn cid = do
 
 accept :: Chat m c => c -> ClientId -> m ()
 accept conn cid = do
-  connected <- isConnected cid
-  if connected
-    then sendAlreadyConnected
-    else start conn cid
-  where
-    sendAlreadyConnected = do
-      log D $ "Rejecting connection from " <> show cid <> " because: " <> rejectReason
-      send conn rejectReason
-    rejectReason :: HubMsg
-    rejectReason = "client " <> show cid <> " is already connected"
+  send conn $ Announcement.responseText Accept
+  start conn cid
 
-reject :: Chat m c => c -> AnnouncementError -> m ()
+reject :: Chat m c => c -> Announcement.Error -> m ()
 reject conn err = do
-  log D $ "Rejecting connection because: " <> reason
-  send conn reason
-  where
-    reason = Announcement.errorText err
+  log D $ "Rejecting connection because: " <> Announcement.errorText err
+  send conn $ Announcement.responseText (Announcement.Reject err)
 
 join :: Chat m c => c -> ClientId -> m ()
 join conn cid = do
@@ -128,8 +124,10 @@ join conn cid = do
   log D $ show cid <> " joined"
   forever $ do
     msg <- receive conn
-    broadcast cid $ name <> ": " <> msg
-  where name = clientName cid
+    when (not $ Text.isPrefixOf "!" msg) $
+      broadcast cid $ name <> ": " <> msg
+  where
+    name = clientName cid
 
 leave :: Chat m c => ClientId -> m ()
 leave cid = do
