@@ -169,7 +169,7 @@ listen
 listen = do
   { connection } ← ask
   socket ← liftEffect $ Ref.read connection
-  for_ socket (Coroutine.runProcess ∘ process)
+  liftAff $ for_ socket (Coroutine.runProcess ∘ process)
   where process sock = messageProducer sock $$ messageConsumer
 
 messageConsumer
