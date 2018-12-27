@@ -5,9 +5,9 @@ module Chat.AppM where
 
 import Prelude
 
-import Chat.Capability.Logging (class Logging, consoleLogger)
+import Chat.Capability.Logging (class Logging, consoleLogger, logDebug)
 import Chat.Capability.Now (class Now)
-import Chat.Capabiltiy.Hub (class Hub, receive)
+import Chat.Capabiltiy.Hub (class Hub, receive, send)
 import Chat.Capabiltiy.Navigation (class Navigation)
 import Chat.Data.BaseURL as BaseURL
 import Chat.Data.Log (Severity(..)) as Severity
@@ -18,9 +18,8 @@ import Chat.Data.User as User
 import Chat.Env (Env)
 import Chat.Env (LogLevel(..)) as LogLevel
 import Chat.Env as Env
-import Control.Coroutine (Producer, ($$))
-import Control.Coroutine as Coroutine
-import Control.Coroutine.Aff (produce', emit) as Coroutine
+import Control.Coroutine (Producer)
+import Control.Coroutine.Aff as Coroutine
 import Control.Logger (cfilter, log) as Logger
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (class MonadAsk, ReaderT, ask, asks, runReaderT)
@@ -32,7 +31,7 @@ import Data.Maybe (Maybe(..), isJust)
 import Data.Newtype (class Newtype)
 import Effect (Effect)
 import Effect.Aff (Aff)
-import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Now as Now
 import Effect.Ref (Ref)
@@ -40,10 +39,14 @@ import Effect.Ref as Ref
 import Foreign (F, Foreign, unsafeToForeign)
 import Foreign as Foreign
 import Halogen (liftEffect)
+import Halogen as H
 import Prelude.Unicode ((∘))
 import Routing.Hash (setHash) as Routing
 import Text.Parsing.StringParser (ParseError(..))
 import Type.Prelude (class TypeEquals, from)
+import Unsafe.Coerce (unsafeCoerce)
+import Web.Event.Event (Event)
+import Web.Event.EventTarget (EventListener)
 import Web.Event.EventTarget as EventTarget
 import Web.Socket.Event.EventTypes as EventTypes
 import Web.Socket.Event.MessageEvent as MessageEvent
@@ -122,14 +125,16 @@ instance navigationAppM ∷ Navigation AppM where
 instance hubAppM ∷ Hub AppM where
   connect me = do
     env ← ask
+    let url = BaseURL.toString env.baseUrl
+    logDebug $ "Creating socket connection with " <> url
+    socket ← liftEffect $ WebSocket.create url []
+    listener ← eventListener' \_ → send ("!hi!" <> User.toString me) *> listen
     liftEffect do
-      socket ← WebSocket.create (BaseURL.toString env.baseUrl) []
       Ref.write (Just socket) env.connection
       Ref.write (Just me) env.user
       Ref.write true env.isLoading
-      WebSocket.sendString socket announcement
-    where
-      announcement = "!hi!" <> User.toString me
+      let target = WebSocket.toEventTarget socket
+      EventTarget.addEventListener EventTypes.onOpen listener false target
 
   disconnect = do
     env ← ask
@@ -143,13 +148,15 @@ instance hubAppM ∷ Hub AppM where
     liftEffect do
       user ← Ref.read env.user
       connection ← Ref.read env.connection
-      for_ connection (flip WebSocket.sendString text)
+      for_ connection $ flip WebSocket.sendString text
 
   receive = case _ of
     Message.Accepted → do
+      logDebug "Connection accepted, logged in"
       { isLoading } ← ask
       liftEffect $ Ref.write false isLoading
     Message.Rejected err → do
+      logDebug $ "Connection rejected: " <> err
       env ← ask
       liftEffect do
         Ref.write (Just err) env.error
@@ -157,45 +164,35 @@ instance hubAppM ∷ Hub AppM where
         for_ socket WebSocket.close
         Env.reset env
     msg → do
+      logDebug $ "Got message: " <> Message.print msg
       { messages } ← ask
       liftEffect $ Ref.modify_ ((:) msg) messages
 
 listen
   ∷ ∀ m
-  . Hub m
-  ⇒ MonadAff m
-  ⇒ MonadAsk Env m
-  ⇒ m Unit
-listen = do
-  { connection } ← ask
-  socket ← liftEffect $ Ref.read connection
-  liftAff $ for_ socket (Coroutine.runProcess ∘ process)
-  where process sock = messageProducer sock $$ messageConsumer
-
-messageConsumer
-  ∷ ∀ m
-  . MonadAff m
+  . MonadEffect m
   ⇒ MonadAsk Env m
   ⇒ Hub m
-  ⇒ Coroutine.Consumer String m Unit
-messageConsumer = Coroutine.consumer \msg → do
-  { error } ← ask
-  case Message.parse msg of
-    Left (ParseError err) → liftEffect $ Ref.write (Just err) error
-    Right message → receive message
-  pure Nothing
-
-messageProducer ∷ ∀ m. MonadAff m ⇒ WebSocket → Producer String m Unit
-messageProducer socket = Coroutine.produce' \emitter → do
-  listener ← EventTarget.eventListener \event → do
-    for_ (MessageEvent.fromEvent event) \msgEvent →
-      for_ (readHelper Foreign.readString (MessageEvent.data_ msgEvent)) \msg →
-        Coroutine.emit emitter msg
-  EventTarget.addEventListener
-    EventTypes.onMessage
-    listener
-    false
-    (WebSocket.toEventTarget socket)
+  ⇒ m Unit
+listen = do
+  env ← ask
+  listener ← eventListener' \event →
+    for_ (MessageEvent.fromEvent event) \msgEvent → do
+      let
+        msgData = MessageEvent.data_ msgEvent
+        msgRaw  = readHelper Foreign.readString msgData
+      for_ msgRaw \msg → case Message.parse msg of
+          Left (ParseError err) → liftEffect $ Ref.write (Just err) env.error
+          Right message → receive message
+  liftEffect do
+    socket ← Ref.read env.connection
+    for_ socket (addListener listener)
   where
+    addListener listener sock = EventTarget.addEventListener
+      EventTypes.onMessage listener false (WebSocket.toEventTarget sock)
+
     readHelper ∷ ∀ a b. (Foreign → F a) → b → Maybe a
     readHelper read = either (const Nothing) Just ∘ runExcept ∘ read ∘ unsafeToForeign
+
+eventListener' ∷ ∀ a m. MonadEffect m ⇒ (Event → m a) → m EventListener
+eventListener' = unsafeCoerce EventTarget.eventListener

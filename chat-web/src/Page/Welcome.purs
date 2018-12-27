@@ -11,6 +11,7 @@ module Chat.Page.Welcome
 
 import Prelude
 
+import Chat.Capability.Logging (class Logging)
 import Chat.Capabiltiy.Hub (class Hub, connect)
 import Chat.Capabiltiy.Navigation (class Navigation, navigate)
 import Chat.Component.HTML.Utils (css)
@@ -23,7 +24,7 @@ import Chat.Form.Validation.Error (Error) as Validation
 import Chat.Page.Welcome.JoinForm (JoinForm)
 import Chat.Page.Welcome.JoinForm (render, validators, formProxy, Slot(..)) as JoinForm
 import Control.Monad.Reader (class MonadAsk)
-import Data.Foldable (traverse_)
+import Data.Foldable (for_, traverse_)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Effect.Aff.Class (class MonadAff)
@@ -55,6 +56,7 @@ type ChildSlot  = JoinForm.Slot
 type WithCaps c m r
   = MonadAff m
   ⇒ MonadAsk { user ∷ Ref (Maybe User) | r } m
+  ⇒ Logging m
   ⇒ Navigation m
   ⇒ Hub m
   ⇒ c m
@@ -87,8 +89,9 @@ component = H.lifecycleParentComponent
           let
             fields = F.unwrapOutputFields outputs
             user = User.parse fields.name
-            -- traverse connect user
-            -- traverse_ (\_ → navigate Route.Room)
+          for_ user \me → do
+            connect me
+            navigate Route.Room
           pure a
         _ →
           pure a

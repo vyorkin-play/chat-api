@@ -32,6 +32,8 @@ import Web.Socket.WebSocket as WebSocket
 main :: Effect Unit
 main = HA.runHalogenAff do
   body ← HA.awaitBody
+
+  -- env ← liftEffect $ mkEnv (BaseURL "ws://echo.websocket.org") Dev
   env ← liftEffect $ mkEnv (BaseURL "ws://localhost:9160") Dev
 
   let router ∷ Router.Component' Aff

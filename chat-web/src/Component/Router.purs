@@ -11,6 +11,7 @@ module Chat.Component.Router
 
 import Prelude
 
+import Chat.Capability.Logging (class Logging)
 import Chat.Capability.Now (class Now)
 import Chat.Capabiltiy.Hub (class Hub)
 import Chat.Capabiltiy.Navigation (class Navigation)
@@ -62,6 +63,7 @@ type WithCaps c m
   = MonadAff m
   ⇒ MonadAsk Env m
   ⇒ Now m
+  ⇒ Logging m
   ⇒ Navigation m
   ⇒ Hub m
   ⇒ c m
