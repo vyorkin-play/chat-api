@@ -10,4 +10,4 @@ data Error
 toString ∷ Error → String
 toString = case _ of
   Required → "This field is required"
-  TooShort → "Not enought characters entered"
+  TooShort → "Not enough characters entered"

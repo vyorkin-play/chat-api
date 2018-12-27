@@ -5,7 +5,7 @@ import Prelude
 import Chat.Component.HTML.Utils (css, maybeElem)
 import Chat.Form.Validation.Error (Error) as Validation
 import Chat.Form.Validation.Error (toString) as ValidationError
-import DOM.HTML.Indexed (HTMLbutton, HTMLinput)
+import DOM.HTML.Indexed (HTMLa, HTMLinput)
 import Data.Newtype (class Newtype)
 import Data.Variant (Variant)
 import Formless as F
@@ -19,11 +19,11 @@ import Type.Row as Row
 -- | A reusable Formless submit button.
 submit
   ∷ ∀ pq cq cs form m
-  . String
-  → Array (IProp HTMLbutton (F.Query pq cq cs form m Unit))
+  . Array (IProp HTMLa (F.Query pq cq cs form m Unit))
+  → String
   → F.HTML pq cq cs form m
-submit text attrs =
-  HH.button
+submit attrs text =
+  HH.a
   ([ HE.onClick $ HE.input_ F.submit ] <> attrs)
   [ HH.text text ]
 
@@ -68,7 +68,7 @@ input sym form attrs =
   [ css ["form-field"] ]
   [ HH.input
     ( append
-      [ css ["form-field-input"]
+      [ css ["input form-field-input"]
       , HP.value $ F.getInput sym form
       , HE.onValueInput $ HE.input $ F.setValidate sym
       ]

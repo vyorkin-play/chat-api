@@ -12,4 +12,5 @@ footer ∷ ∀ i p. HH.HTML i p
 footer =
   HH.footer
   [ css ["footer"] ]
-  []
+  [ HH.text "something"
+  ]

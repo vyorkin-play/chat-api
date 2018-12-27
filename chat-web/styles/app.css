@@ -42,6 +42,10 @@ html {
   font-size: 11pt;
 }
 
+html, body {
+  height: 100%;
+}
+
 *,
 *:before,
 *:after {
@@ -52,11 +56,18 @@ ul {
   list-style-type: none;
   padding-left: 0px;
 }
+
 a {
-  color: #3971ed;
   text-decoration: none;
 }
 a:hover {
+}
+
+.link {
+  color: #3971ed;
+}
+
+.link:hover {
   color: #4282fe;
 }
 
@@ -69,11 +80,27 @@ button {
   cursor: pointer;
 }
 
+.app {
+  height: 100%;
+}
+
+.content {
+  min-height: 100%;
+  margin-bottom: -4rem;
+}
+
+.header, .footer {
+  padding: 0.5rem;
+  display: flex;
+}
 .header {
   border-bottom: 1px solid #eee;
-  padding: 0.5rem;
   box-shadow: 0 0px 2px rgba(0,0,0,0.1);
-  display: flex;
+}
+.footer {
+  height: 4rem;
+  background-color: #111;
+  color: #fff;
 }
 
 .logo {
@@ -91,12 +118,12 @@ button {
 }
 
 .input {
-  padding: 0.2rem 0.4rem;
+  padding: 0.4rem 0.8rem;
   font-size: 1.4rem;
-  border: 1px solid #eee;
+  border: 2px solid #eee;
 }
 .input:hover, input:focus {
-  border: 1px solid #4282fe;
+  border: 2px solid #5393ff;
 }
 
 .button {
@@ -104,8 +131,20 @@ button {
 }
 
 .button-join {
-  font-size: 1.4rem;
-  background-color: #198844;
+  font-size: 2.8rem;
+  background-color: #076622;
+  color: #fff;
+  width: 100%;
+  height: 5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.button-join:hover {
+  background-color: #2a9955;
   color: #fff;
 }
 
@@ -113,4 +152,73 @@ button {
   font-size: 1.2rem;
   background-color: #3971ed;
   color: #fff;
+}
+
+.form-field {
+}
+
+.form-field-input {
+  margin: 0.4rem 0;
+}
+
+.form-field-error {
+  margin-bottom: 0.4rem;
+  padding: 0.4rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #aa0000;
+  border: 1px dashed #ff0000;
+}
+
+.page-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-join {
+  margin: 5rem 0;
+}
+.form-join-fields {
+  display: flex;
+}
+
+.page-room {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.page-room-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #bbb;
+}
+
+.message-list {
+  margin: 1rem;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  color: #000;
+  border: 1px solid #eee;
+  padding: 0.2rem;
+}
+.message:hover {
+  color: #333;
+  border-color: #c2c2c2;
+}
+
+.message-said {
+  background-color: #fff;
+}
+.message-joined {
+  background-color: #baffc9;
+}
+.message-left {
+  background-color: #ffffba;
 }

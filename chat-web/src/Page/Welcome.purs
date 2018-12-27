@@ -16,26 +16,19 @@ import Chat.Capabiltiy.Hub (class Hub, connect)
 import Chat.Capabiltiy.Navigation (class Navigation, navigate)
 import Chat.Component.HTML.Utils (css)
 import Chat.Data.Route (Route(..)) as Route
-import Chat.Data.User (User(..))
+import Chat.Data.User (User)
 import Chat.Data.User as User
-import Chat.Form.Field as Field
-import Chat.Form.Validation (required, minLength) as Validation
-import Chat.Form.Validation.Error (Error) as Validation
 import Chat.Page.Welcome.JoinForm (JoinForm)
 import Chat.Page.Welcome.JoinForm (render, validators, formProxy, Slot(..)) as JoinForm
 import Control.Monad.Reader (class MonadAsk)
-import Data.Foldable (for_, traverse_)
+import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Ref (Ref)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
-import Halogen.HTML.Properties as HP
-import Prelude.Unicode ((⋙))
-import Web.Socket.WebSocket (WebSocket)
 
 data Query a
   = Initialize a
@@ -89,9 +82,7 @@ component = H.lifecycleParentComponent
           let
             fields = F.unwrapOutputFields outputs
             user = User.parse fields.name
-          for_ user \me → do
-            connect me
-            navigate Route.Room
+          for_ user connect *> navigate Route.Room
           pure a
         _ →
           pure a
@@ -99,7 +90,7 @@ component = H.lifecycleParentComponent
     render ∷ State → HTML m
     render state =
       HH.div
-      [ css ["container"] ]
+      [ css ["page-welcome"] ]
       [ renderJoinForm
       ]
 

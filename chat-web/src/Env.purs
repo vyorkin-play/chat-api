@@ -34,24 +34,24 @@ type Env =
   , messages ∷ Ref (Array Message)
   , connection ∷ Ref (Maybe WebSocket)
   , isLoading ∷ Ref Boolean
-  , error ∷ Ref (Maybe String)
-  }
+  , error ∷ Ref (Maybe String)}
 
 mkEnv ∷ BaseURL → LogLevel → Effect Env
 mkEnv baseUrl logLevel = do
-  user ← liftEffect $ Ref.new Nothing
-  messages ← liftEffect $ Ref.new []
-  connection ← liftEffect $ Ref.new Nothing
-  isLoading ← liftEffect $ Ref.new false
-  error ← liftEffect $ Ref.new Nothing
-  pure { logLevel: Dev
-       , baseUrl: BaseURL "ws://localhost:9160"
-       , user
-       , messages
-       , connection
-       , isLoading
-       , error
-       }
+  liftEffect do
+    user ← Ref.new Nothing
+    messages ← Ref.new []
+    connection ← Ref.new Nothing
+    isLoading ← Ref.new false
+    error ← Ref.new Nothing
+    pure { logLevel: Dev
+         , baseUrl: BaseURL "ws://localhost:9160"
+         , user
+         , messages
+         , connection
+         , isLoading
+         , error
+         }
 
 reset ∷ Env → Effect Unit
 reset env = do

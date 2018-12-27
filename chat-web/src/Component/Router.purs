@@ -15,6 +15,7 @@ import Chat.Capability.Logging (class Logging)
 import Chat.Capability.Now (class Now)
 import Chat.Capabiltiy.Hub (class Hub)
 import Chat.Capabiltiy.Navigation (class Navigation)
+import Chat.Component.HTML.Footer (footer)
 import Chat.Component.HTML.Header (header)
 import Chat.Component.HTML.Utils (css)
 import Chat.Data.Route (Route(..))
@@ -96,8 +97,12 @@ component = H.parentComponent
     render { route } =
       HH.div
       [ css ["app"] ]
-      [ header { user: Nothing, route }
-      , renderPage route
+      [ HH.div
+        [ css ["content"] ]
+        [ header { user: Nothing, route }
+        , renderPage route
+        ]
+      , footer
       ]
 
     renderPage ∷ Route → HTML m

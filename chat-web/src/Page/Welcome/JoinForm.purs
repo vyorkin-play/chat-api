@@ -7,15 +7,16 @@ module Chat.Page.Welcome.JoinForm
   ) where
 
 import Prelude
+
 import Chat.Component.HTML.Utils (css)
+import Chat.Form.Field (submit)
+import Chat.Form.Field as Field
 import Chat.Form.Validation (required, minLength) as Validation
 import Chat.Form.Validation.Error (Error) as Validation
-import Chat.Form.Field as Field
 import Data.Newtype (class Newtype)
 import Effect.Aff.Class (class MonadAff)
 import Formless as F
 import Halogen.HTML as HH
-import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Prelude.Unicode ((⋙))
 
@@ -39,16 +40,20 @@ validators = JoinForm
   { name: Validation.required ⋙ Validation.minLength 3
   }
 
-render ∷ ∀ m. MonadAff m ⇒ F.State JoinForm m → F.HTML' JoinForm m
+render
+  ∷ ∀ m
+  . MonadAff m
+  ⇒ F.State JoinForm m
+  → F.HTML' JoinForm m
 render state =
-  HH.form_
-  [ HH.fieldset_
+  HH.form
+  [ css ["form-join"] ]
+  [ HH.fieldset
+    [ css ["form-join-fields"] ]
     [ name
-    , HH.button
-      [ css ["button button-join"]
-      , HE.onClick $ HE.input_ F.submit
-      ]
-      [ HH.text "join" ]
+    , submit
+      [ css ["button button-join"] ]
+      "join"
     ]
   ]
   where
