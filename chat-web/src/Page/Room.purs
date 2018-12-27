@@ -16,6 +16,7 @@ import Control.Monad.Reader (class MonadAsk)
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
 import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import Halogen as H
 import Halogen.HTML as HH
 

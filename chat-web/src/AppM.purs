@@ -158,12 +158,12 @@ instance hubAppM ∷ Hub AppM where
       liftEffect $ Ref.write false isLoading
     Message.Rejected err → do
       logDebug $ "Connection rejected: " <> err
-      -- env ← ask
-      -- liftEffect do
-      --   Ref.write (Just err) env.error
-      --   socket ← Ref.read env.connection
-        -- for_ socket WebSocket.close
-        -- Env.reset env
+      env ← ask
+      liftEffect do
+        Ref.write (Just err) env.error
+        socket ← Ref.read env.connection
+        for_ socket WebSocket.close
+        Env.reset env
     msg → do
       logDebug $ "Got message: " <> Message.print msg
       { messages } ← ask
