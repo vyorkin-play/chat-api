@@ -1,7 +1,7 @@
 module Chat.Page.Welcome
   ( Query(..)
   , Input
-  , Output
+  , Message(..)
   , Slot(..)
   , WithCaps
   , Component'
@@ -12,10 +12,8 @@ module Chat.Page.Welcome
 import Prelude
 
 import Chat.Capability.Logging (class Logging)
-import Chat.Capabiltiy.Hub (class Hub, connect)
-import Chat.Capabiltiy.Navigation (class Navigation, navigate)
+import Chat.Capabiltiy.Navigation (class Navigation)
 import Chat.Component.HTML.Utils (css)
-import Chat.Data.Route (Route(..)) as Route
 import Chat.Data.User (User)
 import Chat.Data.User as User
 import Chat.Page.Welcome.JoinForm (JoinForm)
@@ -29,6 +27,7 @@ import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
+import Prelude.Unicode ((∘))
 
 data Query a
   = Initialize a
@@ -36,8 +35,8 @@ data Query a
 
 type State = Unit
 
-type Input  = Unit
-type Output = Void
+type Input = Unit
+data Message = Join User
 
 data Slot = Slot
 derive instance eqSlot ∷ Eq Slot
@@ -51,13 +50,12 @@ type WithCaps c m r
   ⇒ MonadAsk { user ∷ Ref (Maybe User) | r } m
   ⇒ Logging m
   ⇒ Navigation m
-  ⇒ Hub m
   ⇒ c m
 
-type Component' m = H.Component HH.HTML Query Input Output m
+type Component' m = H.Component HH.HTML Query Input Message m
 type Component  m r = WithCaps Component' m r
 
-type DSL m  = H.ParentDSL State Query (ChildQuery m) ChildSlot Output m
+type DSL m  = H.ParentDSL State Query (ChildQuery m) ChildSlot Message m
 type HTML m = H.ParentHTML Query (ChildQuery m) ChildSlot m
 
 component ∷ ∀ m r. Component m r
@@ -82,7 +80,7 @@ component = H.lifecycleParentComponent
           let
             fields = F.unwrapOutputFields outputs
             user = User.parse fields.name
-          for_ user connect *> navigate Route.Room
+          for_ user $ H.raise ∘ Join
           pure a
         _ →
           pure a

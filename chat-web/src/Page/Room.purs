@@ -1,6 +1,7 @@
 module Chat.Page.Room
   ( Query(..)
   , Input
+  , StateRep
   , Slot(..)
   , component
   ) where
@@ -19,11 +20,18 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 
-data Query a = Unit a
-type State = Unit
+type StateRep r =
+  { messages ∷ Array Message
+  | r
+  }
 
-type Input  = Unit
+data Query a = Receive Input a
+
+type State = StateRep ()
+type Input = StateRep ()
+
 type Output = Void
 
 data Slot = Slot
@@ -32,7 +40,6 @@ derive instance ordSlot ∷ Ord Slot
 
 type WithCaps c m r
   = MonadAff m
-  ⇒ MonadAsk { messages ∷ Ref (Array Message) | r } m
   ⇒ Logging m
   ⇒ Hub m
   ⇒ c m
@@ -45,17 +52,19 @@ type HTML = H.ComponentHTML Query
 
 component ∷ ∀ m r. Component m r
 component = H.component
-  { initialState: const unit
+  { initialState: identity
   , render
   , eval
-  , receiver: const Nothing
+  , receiver: HE.input Receive
   }
   where
     eval ∷ Query ~> DSL m
-    eval (Unit a) = pure a
+    eval (Receive { messages } a) = do
+      H.modify_ _ { messages = messages }
+      pure a
 
     render ∷ State → HTML
-    render _ =
+    render state =
       HH.div
       [ css ["page-room"] ]
       [ HH.h4

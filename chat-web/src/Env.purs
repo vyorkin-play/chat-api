@@ -7,7 +7,6 @@ module Chat.Env
 
 import Prelude
 
-import Chat.Data.Message (Message)
 import Chat.Data.User (User)
 import Chat.Data.BaseURL (BaseURL(..))
 import Data.Maybe (Maybe(..))
@@ -31,23 +30,21 @@ type Env =
   { baseUrl ∷ BaseURL
   , logLevel ∷ LogLevel
   , user ∷ Ref (Maybe User)
-  , messages ∷ Ref (Array Message)
   , connection ∷ Ref (Maybe WebSocket)
   , isLoading ∷ Ref Boolean
-  , error ∷ Ref (Maybe String)}
+  , error ∷ Ref (Maybe String)
+  }
 
 mkEnv ∷ BaseURL → LogLevel → Effect Env
 mkEnv baseUrl logLevel = do
   liftEffect do
     user ← Ref.new Nothing
-    messages ← Ref.new []
     connection ← Ref.new Nothing
     isLoading ← Ref.new false
     error ← Ref.new Nothing
     pure { logLevel: Dev
          , baseUrl: BaseURL "ws://localhost:9160"
          , user
-         , messages
          , connection
          , isLoading
          , error
