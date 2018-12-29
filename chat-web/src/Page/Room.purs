@@ -79,5 +79,5 @@ component = H.component
       , HH.ul
         [ css ["message-list"]
         ]
-        []
+        (flip message [] <$> state.messages)
       ]

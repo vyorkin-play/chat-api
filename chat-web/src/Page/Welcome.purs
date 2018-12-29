@@ -18,11 +18,9 @@ import Chat.Data.User (User)
 import Chat.Data.User as User
 import Chat.Page.Welcome.JoinForm (JoinForm)
 import Chat.Page.Welcome.JoinForm (render, validators, formProxy, Slot(..)) as JoinForm
-import Control.Monad.Reader (class MonadAsk)
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
-import Effect.Ref (Ref)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
@@ -43,11 +41,10 @@ derive instance eqSlot ∷ Eq Slot
 derive instance ordSlot ∷ Ord Slot
 
 type ChildQuery m = F.Query' JoinForm m
-type ChildSlot  = JoinForm.Slot
+type ChildSlot = JoinForm.Slot
 
 type WithCaps c m r
   = MonadAff m
-  ⇒ MonadAsk { user ∷ Ref (Maybe User) | r } m
   ⇒ Logging m
   ⇒ Navigation m
   ⇒ c m

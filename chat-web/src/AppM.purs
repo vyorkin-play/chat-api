@@ -5,42 +5,46 @@ module Chat.AppM where
 
 import Prelude
 
-import Chat.Capability.Logging (class Logging, consoleLogger, logDebug)
+import Chat.Capability.Logging (class Logging, consoleLogger, logDebug, logError)
 import Chat.Capability.Now (class Now)
-import Chat.Capabiltiy.Hub (class Hub, send)
+import Chat.Capabiltiy.Hub (class Hub, disconnect, send)
 import Chat.Capabiltiy.Navigation (class Navigation)
 import Chat.Data.BaseURL as BaseURL
+import Chat.Data.Connection (_Accepted, _Pending)
+import Chat.Data.Connection as Connection
 import Chat.Data.Log (Severity(..)) as Severity
+import Chat.Data.Message (Message)
 import Chat.Data.Message as Message
 import Chat.Data.Route (print) as Route
 import Chat.Data.User as User
 import Chat.Env (Env)
 import Chat.Env (LogLevel(..)) as LogLevel
-import Chat.Env as Env
+import Chat.Web.Socket.WebSocket (toCloseReason, onOpen, onClose, onMessage) as WebSocket
 import Control.Logger (cfilter, log) as Logger
-import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (class MonadAsk, ReaderT, ask, asks, runReaderT)
 import Data.Array (elem)
-import Data.Either (Either(..), either)
+import Data.Either (Either, either)
 import Data.Foldable (for_)
+import Data.Lens ((^?))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Debug.Trace (traceM)
+import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Now as Now
 import Effect.Ref as Ref
-import Foreign (unsafeToForeign)
-import Foreign as Foreign
-import Halogen (liftEffect)
+import Halogen (eventSource, liftEffect)
+import Halogen.Query.EventSource (eventSource')
 import Prelude.Unicode ((∘))
 import Routing.Hash (setHash) as Routing
-import Text.Parsing.StringParser (ParseError(..))
+import Text.Parsing.StringParser (ParseError)
 import Type.Prelude (class TypeEquals, from)
-import Web.Event.EventTarget as EventTarget
-import Web.Socket.Event.EventTypes as EventTypes
-import Web.Socket.Event.MessageEvent as MessageEvent
-import Web.Socket.WebSocket as WebSocket
+import Web.Event.Event (Event)
+import Web.Socket.Event.CloseEvent (CloseEvent)
+import Web.Socket.Event.CloseEvent as CloseEvent
+import Web.Socket.WebSocket (close, create, sendString) as WebSocket
 
 -- Our application monad will be the base of a `ReaderT` transformer.
 -- We gain the functionality of `ReaderT` in addition to any other instances we write.
@@ -55,6 +59,9 @@ newtype AppM a = AppM (ReaderT Env Aff a)
 
 runAppM ∷ Env → AppM ~> Aff
 runAppM env (AppM m) = runReaderT m env
+
+launchAppM_ ∷ ∀ a. Env → AppM a → Effect Unit
+launchAppM_ env = launchAff_ ∘ runAppM env
 
 -- We can  derive all the instances we need to make
 -- this new type a monad and allow the use of `Effect` and `Aff`.
@@ -112,77 +119,63 @@ instance navigationAppM ∷ Navigation AppM where
   navigate = liftEffect ∘ Routing.setHash ∘ Route.print
 
 instance hubAppM ∷ Hub AppM where
-  connect handler user = do
+  connect user handlers = do
     env ← ask
-    let
-      url = BaseURL.toString env.baseUrl
-      onOpen = listen handler *> send ("!hi!" <> User.toString user)
+    let url = BaseURL.toString env.baseUrl
     logDebug $ "Creating socket connection with " <> url
     liftEffect do
       socket ← WebSocket.create url []
-      listener ← EventTarget.eventListener \_ →
-        launchAff_ $ runAppM env onOpen
-      let target = WebSocket.toEventTarget socket
-      EventTarget.addEventListener EventTypes.onOpen listener false target
-      Ref.write (Just socket) env.connection
-      Ref.write (Just user) env.user
-      Ref.write true env.isLoading
+      WebSocket.onOpen socket (mkOpenHandler env)
+      WebSocket.onClose socket (mkCloseHanlder env)
+      WebSocket.onMessage socket (mkMessageHandler env)
+      Ref.write (Connection.Pending { socket, user }) env.status
+      pure { onClose: eventSource (WebSocket.onClose socket) handlers.onClose
+           , onMessage: eventSource (WebSocket.onMessage socket) handlers.onMessage
+           }
     where
-    receive msg = case msg of
-      Message.Accepted → do
-        logDebug "Connection accepted, logged in"
-        { isLoading } ← ask
-        liftEffect $ Ref.write false isLoading
-        handler.onAccepted
-      Message.Rejected err → do
-        logDebug $ "Connection rejected: " <> err
-        env ← ask
-        liftEffect do
-          Ref.write (Just err) env.error
-          socket ← Ref.read env.connection
-          for_ socket WebSocket.close
-          Env.reset env
-        handler.onRejected
-      message → do
-        logDebug $ "Got message: " <> Message.print message
-        handler.onMessage message
+      mkOpenHandler ∷ Env → Event → Effect Unit
+      mkOpenHandler env event = launchAppM_ env do
+        logDebug "Connection opened"
+        send $ "!hi!" <> User.toString user
 
-    listen options = do
-      env ← ask
-      liftEffect do
-        listener ← EventTarget.eventListener (handleMessage env)
-        socket ← Ref.read env.connection
-        for_ socket (addListener listener)
-      where
-        addListener listener sock = EventTarget.addEventListener
-          EventTypes.onMessage listener false
-          (WebSocket.toEventTarget sock)
+      mkCloseHanlder ∷ Env → CloseEvent → Effect Unit
+      mkCloseHanlder env event = launchAppM_ env do
+        logDebug "Connection closed"
+        liftEffect $ Ref.write (Connection.Closed reason) env.status
+        where
+        reason =
+          if CloseEvent.wasClean event
+            then Nothing
+            else Just (WebSocket.toCloseReason event)
 
-        handleMessage env event =
-          for_ (MessageEvent.fromEvent event) \msgEvent → do
-            let
-              msgData = MessageEvent.data_ msgEvent
-              msgRaw  = readMessage Foreign.readString msgData
-            launchAff_ $ runAppM env $ for_ msgRaw \msg →
-              case Message.parse msg of
-                Left (ParseError err) →
-                  liftEffect $ Ref.write (Just err) env.error
-                Right message →
-                  receive message
-
-        readMessage read =
-          either (const Nothing) Just ∘ runExcept ∘ read ∘ unsafeToForeign
+      mkMessageHandler ∷ Env → Either ParseError Message → Effect Unit
+      mkMessageHandler env = launchAppM_ env ∘ either (logError ∘ show) handle
+        where
+        handle = case _ of
+          Message.Accepted → do
+            logDebug "Connection accepted, logged in"
+            liftEffect do
+              status ← Ref.read env.status
+              for_ (status ^? _Pending) \c →
+                Ref.write (Connection.Accepted c) env.status
+          Message.Rejected err → do
+            logDebug $ "Connection rejected: " <> err
+            disconnect
+          other →
+            logDebug $ "Got message: " <> Message.print other
 
   disconnect = do
     env ← ask
     liftEffect do
-      socket ← Ref.read env.connection
-      for_ socket WebSocket.close
-      Env.reset env
+      status ← Ref.read env.status
+      for_ (status ^? (_Pending <> _Accepted)) \c →
+        WebSocket.close c.socket
+      Ref.write (Connection.Closed Nothing) env.status
 
   send text = do
     env ← ask
     liftEffect do
-      user ← Ref.read env.user
-      connection ← Ref.read env.connection
-      for_ connection $ flip WebSocket.sendString text
+      status ← Ref.read env.status
+      traceM $ "status: " <> show status
+      for_ (status ^? (_Pending <> _Accepted)) \c →
+        WebSocket.sendString c.socket text

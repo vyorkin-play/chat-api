@@ -19,9 +19,9 @@ import Chat.Component.HTML.Footer (footer)
 import Chat.Component.HTML.Header (header)
 import Chat.Component.HTML.Utils (css)
 import Chat.Data.Message (Message)
-import Chat.Data.Route (Route(..))
-import Chat.Data.Route as Route
-import Chat.Data.Connection as Connection
+import Chat.Data.Message as Message
+import Chat.Data.Route (Route(..)) as Route
+import Chat.Data.Route (Route)
 import Chat.Env (Env)
 import Chat.Page.Contact as Contact
 import Chat.Page.Room as Room
@@ -29,7 +29,9 @@ import Chat.Page.Welcome as Welcome
 import Control.Monad.Reader (class MonadAsk)
 import Data.Array ((:))
 import Data.Const (Const)
+import Data.Either (Either)
 import Data.Either.Nested (type (\/))
+import Data.Foldable (for_)
 import Data.Functor.Coproduct.Nested (type (<\/>))
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
@@ -37,7 +39,9 @@ import Halogen as H
 import Halogen.Component.ChildPath as CP
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
-import Prelude.Unicode ((≢))
+import Prelude.Unicode ((∘), (≢))
+import Text.Parsing.StringParser (ParseError)
+import Web.Socket.Event.CloseEvent (CloseEvent) as WebSocket
 
 type State =
   { route ∷ Route
@@ -47,6 +51,8 @@ type State =
 data Query a
   = Navigate Route a
   | HandleWelcome Welcome.Message a
+  | HandleClose WebSocket.CloseEvent (H.SubscribeStatus → a)
+  | HandleMessage (Either ParseError Message) (H.SubscribeStatus → a)
 
 type Input  = Unit
 type Output = Void
@@ -92,7 +98,7 @@ component = H.parentComponent
   where
     initialState ∷ Input → State
     initialState = const
-      { route: Welcome
+      { route: Route.Welcome
       , messages: []
       }
 
@@ -102,17 +108,26 @@ component = H.parentComponent
         { route } ← H.get
         when (route ≢ dest) $
           H.modify_ _ { route = dest }
-      HandleWelcome msg a → case msg of
+      HandleWelcome msg a → a <$ case msg of
         Welcome.Join user → do
-          H.lift $ connect handler user
-          pure a
-      where
-        onAccepted = navigate Route.Room
-        onRejected = pure unit
-        onMessage msg = H.modify_ $ \s → s { messages = (msg : s.messages) }
-
-        handler ∷ Connection.Handler m
-        handler = { onAccepted, onRejected, onMessage }
+          sources ← H.lift $ connect user
+            { onClose: Just ∘ H.request ∘ HandleClose
+            , onMessage: Just ∘ H.request ∘ HandleMessage
+            }
+          H.subscribe sources.onMessage
+          H.subscribe sources.onClose
+      HandleClose event reply → do
+        pure $ reply H.Done
+      HandleMessage event reply → do
+        { messages } ← H.get
+        for_ event $ case _ of
+          Message.Accepted →
+            navigate Route.Room
+          Message.Rejected _ →
+            pure unit
+          msg →
+            H.modify_ \s → s { messages = msg : messages }
+        pure $ reply H.Listening
 
     render ∷ State → HTML m
     render state =
@@ -128,9 +143,9 @@ component = H.parentComponent
 
     renderPage ∷ State → HTML m
     renderPage state = case state.route of
-      Welcome →
+      Route.Welcome →
         HH.slot' CP.cp1 Welcome.Slot Welcome.component unit (HE.input HandleWelcome)
-      Room →
+      Route.Room →
         HH.slot' CP.cp2 Room.Slot Room.component { messages: state.messages } absurd
-      Contact username →
+      Route.Contact username →
         HH.slot' CP.cp3 Contact.Slot Contact.component unit absurd

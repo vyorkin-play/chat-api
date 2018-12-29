@@ -12,6 +12,7 @@ You can edit this file as you like.
   , "unicode-prelude"
   , "simple-json"
   , "node-fs-aff"
+  , "debug"
   , "generics-rep-optics"
   , "halogen"
   , "halogen-css"

@@ -15,8 +15,8 @@ data Response
   | Reject Error
 
 responseText :: Response -> Text
-responseText Accept     = "!accept!"
-responseText (Reject e) = "!reject!" <> errorText e
+responseText Accept     = "!accepted!"
+responseText (Reject e) = "!rejected!" <> errorText e
 
 data Error
   = WrongAnnouncement
