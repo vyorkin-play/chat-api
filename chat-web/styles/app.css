@@ -153,6 +153,9 @@ button {
   background-color: #3971ed;
   color: #fff;
 }
+.button-send:hover {
+  background-color: #4a82fe;
+}
 
 .form-field {
 }
@@ -180,6 +183,13 @@ button {
   margin: 5rem 0;
 }
 .form-join-fields {
+  display: flex;
+}
+
+.form-message {
+  margin: 5rem 0;
+}
+.form-message-fields {
   display: flex;
 }
 

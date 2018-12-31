@@ -28,7 +28,6 @@ import Data.Foldable (for_)
 import Data.Lens ((^?))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
-import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (class MonadAff)
@@ -36,7 +35,6 @@ import Effect.Class (class MonadEffect)
 import Effect.Now as Now
 import Effect.Ref as Ref
 import Halogen (eventSource, liftEffect)
-import Halogen.Query.EventSource (eventSource')
 import Prelude.Unicode ((∘))
 import Routing.Hash (setHash) as Routing
 import Text.Parsing.StringParser (ParseError)
@@ -176,6 +174,5 @@ instance hubAppM ∷ Hub AppM where
     env ← ask
     liftEffect do
       status ← Ref.read env.status
-      traceM $ "status: " <> show status
       for_ (status ^? (_Pending <> _Accepted)) \c →
         WebSocket.sendString c.socket text

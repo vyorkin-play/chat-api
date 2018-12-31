@@ -27,3 +27,51 @@ msgLeft = icon svg.msgLeft
 
 msgRight ∷ Icon
 msgRight = icon svg.msgRight
+
+ball ∷ Icon
+ball = icon svg.ball
+
+balls ∷ Icon
+balls = icon svg.balls
+
+confetti ∷ Icon
+confetti = icon svg.confetti
+
+fireworks ∷ Icon
+fireworks = icon svg.fireworks
+
+gift1 ∷ Icon
+gift1 = icon svg.gift1
+
+gift2 ∷ Icon
+gift2 = icon svg.gift1
+
+gift3 ∷ Icon
+gift3 = icon svg.gift1
+
+gift4 ∷ Icon
+gift4 = icon svg.gift1
+
+gift5 ∷ Icon
+gift5 = icon svg.gift1
+
+gift6 ∷ Icon
+gift6 = icon svg.gift1
+
+hat ∷ Icon
+hat = icon svg.hat
+
+santa1 ∷ Icon
+santa1 = icon svg.santa1
+
+santa2 ∷ Icon
+santa2 = icon svg.santa2
+
+sweet ∷ Icon
+sweet = icon svg.sweet
+
+tree1 ∷ Icon
+tree1 = icon svg.tree1
+
+tree2 ∷ Icon
+tree2 = icon svg.tree2

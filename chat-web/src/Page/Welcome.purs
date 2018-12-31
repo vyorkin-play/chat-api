@@ -1,7 +1,7 @@
 module Chat.Page.Welcome
   ( Query(..)
   , Input
-  , Message(..)
+  , Output(..)
   , Slot(..)
   , WithCaps
   , Component'
@@ -34,7 +34,7 @@ data Query a
 type State = Unit
 
 type Input = Unit
-data Message = Join User
+data Output = Join User
 
 data Slot = Slot
 derive instance eqSlot ∷ Eq Slot
@@ -49,10 +49,10 @@ type WithCaps c m r
   ⇒ Navigation m
   ⇒ c m
 
-type Component' m = H.Component HH.HTML Query Input Message m
+type Component' m = H.Component HH.HTML Query Input Output m
 type Component  m r = WithCaps Component' m r
 
-type DSL m  = H.ParentDSL State Query (ChildQuery m) ChildSlot Message m
+type DSL m  = H.ParentDSL State Query (ChildQuery m) ChildSlot Output m
 type HTML m = H.ParentHTML Query (ChildQuery m) ChildSlot m
 
 component ∷ ∀ m r. Component m r
@@ -90,12 +90,11 @@ component = H.lifecycleParentComponent
       ]
 
     renderJoinForm ∷ HTML m
-    renderJoinForm =
-      HH.slot
-        JoinForm.Slot
-        F.component
-        { initialInputs: F.mkInputFields JoinForm.formProxy
-        , validators: JoinForm.validators
-        , render: JoinForm.render
-        }
-        (HE.input HandleForm)
+    renderJoinForm = HH.slot
+      JoinForm.Slot
+      F.component
+      { initialInputs: F.mkInputFields JoinForm.formProxy
+      , validators: JoinForm.validators
+      , render: JoinForm.render
+      }
+      (HE.input HandleForm)

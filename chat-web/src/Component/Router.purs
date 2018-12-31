@@ -13,11 +13,12 @@ import Prelude
 
 import Chat.Capability.Logging (class Logging)
 import Chat.Capability.Now (class Now)
-import Chat.Capabiltiy.Hub (class Hub, connect)
+import Chat.Capabiltiy.Hub (class Hub, connect, send)
 import Chat.Capabiltiy.Navigation (class Navigation, navigate)
 import Chat.Component.HTML.Footer (footer)
 import Chat.Component.HTML.Header (header)
 import Chat.Component.HTML.Utils (css)
+import Chat.Data.Connection (_Accepted)
 import Chat.Data.Message (Message)
 import Chat.Data.Message as Message
 import Chat.Data.Route (Route(..)) as Route
@@ -26,15 +27,18 @@ import Chat.Env (Env)
 import Chat.Page.Contact as Contact
 import Chat.Page.Room as Room
 import Chat.Page.Welcome as Welcome
-import Control.Monad.Reader (class MonadAsk)
+import Control.Monad.Reader (class MonadAsk, ask)
 import Data.Array ((:))
 import Data.Const (Const)
 import Data.Either (Either)
 import Data.Either.Nested (type (\/))
 import Data.Foldable (for_)
 import Data.Functor.Coproduct.Nested (type (<\/>))
+import Data.Lens ((^?))
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
+import Effect.Ref as Ref
+import Halogen (liftEffect)
 import Halogen as H
 import Halogen.Component.ChildPath as CP
 import Halogen.HTML as HH
@@ -50,7 +54,8 @@ type State =
 
 data Query a
   = Navigate Route a
-  | HandleWelcome Welcome.Message a
+  | HandleWelcome Welcome.Output a
+  | HandleRoom Room.Output a
   | HandleClose WebSocket.CloseEvent (H.SubscribeStatus → a)
   | HandleMessage (Either ParseError Message) (H.SubscribeStatus → a)
 
@@ -116,6 +121,15 @@ component = H.parentComponent
             }
           H.subscribe sources.onMessage
           H.subscribe sources.onClose
+      HandleRoom msg a → a <$ case msg of
+        Room.Send text → do
+          env ← ask
+          { messages } ← H.get
+          status ← liftEffect $ Ref.read env.status
+          for_ (status ^? _Accepted) \{ user } → do
+            H.lift $ send text
+            let message = Message.Said user text
+            H.modify_ \s → s { messages = message : messages }
       HandleClose event reply → do
         pure $ reply H.Done
       HandleMessage event reply → do
@@ -124,7 +138,7 @@ component = H.parentComponent
           Message.Accepted →
             navigate Route.Room
           Message.Rejected _ →
-            pure unit
+            navigate Route.Welcome
           msg →
             H.modify_ \s → s { messages = msg : messages }
         pure $ reply H.Listening
@@ -146,6 +160,6 @@ component = H.parentComponent
       Route.Welcome →
         HH.slot' CP.cp1 Welcome.Slot Welcome.component unit (HE.input HandleWelcome)
       Route.Room →
-        HH.slot' CP.cp2 Room.Slot Room.component { messages: state.messages } absurd
+        HH.slot' CP.cp2 Room.Slot Room.component { messages: state.messages } (HE.input HandleRoom)
       Route.Contact username →
         HH.slot' CP.cp3 Contact.Slot Contact.component unit absurd

@@ -52,7 +52,7 @@ render state =
     [ css ["form-join-fields"] ]
     [ name
     , submit
-      [ css ["button button-join"] ]
+      [ css ["button", "button-join"] ]
       "join"
     ]
   ]
