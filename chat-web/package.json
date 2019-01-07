@@ -12,7 +12,7 @@
     "reset:spago": "rm -rf .spago",
     "compile": "spago build",
     "test": "spago test",
-    "repl:browser": "spago repl -- --port 3200",
+    "repl:browser": "spago repl --port 3200",
     "repl:node": "spago repl",
     "parcel:build": "parcel build app.html",
     "parcel:serve": "parcel app.html -p 3100 --no-autoinstall --no-cache",
